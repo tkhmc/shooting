@@ -1,5 +1,5 @@
 (function() {
-  var ASSETS, ENEMY_SIZE, SCREEN_BACKGROUND_COLOR, SCREEN_HEIGHT, SCREEN_WIDTH, SHOOTER_BOTTOM_LIMIT, SHOOTER_LEFT_LIMIT, SHOOTER_RIGHT_LIMIT, SHOOTER_SIZE, SHOOTER_TOP_LIMIT;
+  var ASSETS, ENEMY_SIZE, SCREEN_BACKGROUND_COLOR, SCREEN_HEIGHT, SCREEN_WIDTH, SHOOTER_BOTTOM_LIMIT, SHOOTER_LEFT_LIMIT, SHOOTER_RIGHT_LIMIT, SHOOTER_SIZE, SHOOTER_TOP_LIMIT, SOUNDS;
 
   SCREEN_WIDTH = 640;
 
@@ -10,6 +10,12 @@
   ASSETS = {
     "shooter": "img/shooter.png",
     "enemy": "img/enemy.png"
+  };
+
+  SOUNDS = {
+    "start": "sound/btn09.mp3",
+    "died": "sound/btn11.mp3",
+    "bgm": "sound/nv_01.mp3"
   };
 
   SHOOTER_SIZE = 32;
@@ -66,6 +72,17 @@
             baseline: "middle"
           }, {
             type: "Label",
+            name: "soundCautionLabel",
+            text: "音が流れます",
+            x: SCREEN_WIDTH / 2,
+            y: 700,
+            fillStyle: "#FFFFFF",
+            fontSize: 26,
+            fontFamily: "メイリオ",
+            align: "center",
+            baseline: "middle"
+          }, {
+            type: "Label",
             name: "startLabel",
             text: "Start",
             x: SCREEN_WIDTH / 2,
@@ -81,6 +98,7 @@
       this.startLabel.tweener.fadeOut(500).fadeIn(1000).setLoop(true);
     },
     onpointingstart: function() {
+      tm.sound.Sound(SOUNDS.start).play();
       this.app.replaceScene(GameScene());
     }
   });
@@ -89,11 +107,19 @@
     superClass: "tm.app.Scene",
     init: function() {
       this.superInit();
+      this.bgm = tm.sound.Sound(SOUNDS.bgm);
+      this.bgm.play();
       this.shooter = Shooter().addChildTo(this);
       this.shooter.position.set(SCREEN_WIDTH / 2, 800);
       this.shooter.gotoAndPlay("test");
       this.enemyGroup = tm.app.CanvasElement().addChildTo(this);
       this.timer = 0;
+      this.seconds = tm.display.Label("").setPosition(SCREEN_WIDTH - 10, 10).setBaseline("top").setAlign("right").addChildTo(this);
+      this.seconds.update = (function(_this) {
+        return function(app) {
+          _this.seconds.text = (Math.floor(_this.timer * 100 / 30) / 100).toFixed(2) + "秒";
+        };
+      })(this);
     },
     update: function(app) {
       var enemy, i, j, n, ref;
@@ -109,13 +135,12 @@
       this.enemyGroup.children.each((function(_this) {
         return function(enemy) {
           if (_this.shooter.isHitElement(enemy)) {
+            _this.bgm.stop();
+            tm.sound.Sound(SOUNDS.died).play();
             app.replaceScene(ResultScene(_this.timer));
           }
         };
       })(this));
-    },
-    onpointingstart: function() {
-      this.app.replaceScene(ResultScene());
     }
   });
 
@@ -126,6 +151,20 @@
       this.fromJSON({
         children: [
           {
+            type: "FlatButton",
+            name: "creditButton",
+            init: [
+              {
+                text: "クレジット",
+                fontSize: 14,
+                fontFamily: "メイリオ",
+                width: 100,
+                height: 40
+              }
+            ],
+            x: SCREEN_WIDTH - 70,
+            y: 40
+          }, {
             type: "Label",
             name: "titleLabel",
             text: "Result",
@@ -154,6 +193,62 @@
               {
                 text: "タイトルに戻る",
                 fontSize: 26,
+                fontFamily: "メイリオ"
+              }
+            ],
+            x: SCREEN_WIDTH / 2,
+            y: 800
+          }
+        ]
+      });
+      this.creditButton.onpointingstart = (function(_this) {
+        return function() {
+          _this.app.replaceScene(CreditScene(time));
+        };
+      })(this);
+      this.backButton.onpointingstart = (function(_this) {
+        return function() {
+          _this.app.replaceScene(TitleScene());
+        };
+      })(this);
+    }
+  });
+
+  tm.define("CreditScene", {
+    superClass: "tm.app.Scene",
+    init: function(time) {
+      this.superInit();
+      this.fromJSON({
+        children: [
+          {
+            type: "Label",
+            name: "titleLabel",
+            text: "Credit",
+            x: SCREEN_WIDTH / 2,
+            y: 100,
+            fillStyle: "#FFFFFF",
+            fontSize: 60,
+            fontFamily: "メイリオ",
+            align: "center",
+            baseline: "middle"
+          }, {
+            type: "Label",
+            name: "titleLabel",
+            text: "--- Build Tools etc. ---\nbower\nnpm\ngulp\n--- Libraries ---\npure\ntmlib.js\n--- Sounds ---\nMusMus",
+            x: SCREEN_WIDTH / 2,
+            y: 200,
+            fillStyle: "#CCCCFF",
+            fontSize: 36,
+            fontFamily: "メイリオ",
+            align: "center",
+            baseline: "middle"
+          }, {
+            type: "FlatButton",
+            name: "backButton",
+            init: [
+              {
+                text: "戻る",
+                fontSize: 26,
                 fontFamily: "メイリオ",
                 align: "center",
                 baseline: "middle"
@@ -166,7 +261,7 @@
       });
       this.backButton.onpointingstart = (function(_this) {
         return function() {
-          _this.app.replaceScene(TitleScene());
+          _this.app.replaceScene(ResultScene(time));
         };
       })(this);
     }
@@ -191,6 +286,7 @@
           test: [0, 8, "test", 20]
         }
       }));
+      this.speed = 8;
     },
     update: function(app) {
       if (app.keyboard.getKey("D") || app.keyboard.getKey("right")) {
@@ -208,16 +304,16 @@
       this.ensureMoveLimit();
     },
     goRight: function() {
-      this.x += 4;
+      this.x += this.speed;
     },
     goLeft: function() {
-      this.x -= 4;
+      this.x -= this.speed;
     },
     goUp: function() {
-      this.y -= 4;
+      this.y -= this.speed;
     },
     goDown: function() {
-      this.y += 4;
+      this.y += this.speed;
     },
     ensureMoveLimit: function() {
       if (this.x < SHOOTER_LEFT_LIMIT) {
