@@ -289,6 +289,7 @@
       this.speed = 8;
     },
     update: function(app) {
+      var ref, ref1, ref2, ref3, rotate;
       if (app.keyboard.getKey("D") || app.keyboard.getKey("right")) {
         this.goRight();
       }
@@ -300,6 +301,21 @@
       }
       if (app.keyboard.getKey("s") || app.keyboard.getKey("down")) {
         this.goDown();
+      }
+      if (tm.isMobile) {
+        rotate = app.accelerometer.orientation;
+        if ((10 < (ref = rotate.gamma) && ref < 90)) {
+          this.goRight();
+        }
+        if ((-90 < (ref1 = rotate.gamma) && ref1 < -10)) {
+          this.goLeft();
+        }
+        if ((-180 < (ref2 = rotate.beta) && ref2 < -10)) {
+          this.goUp();
+        }
+        if ((10 < (ref3 = rotate.beta) && ref3 < 180)) {
+          this.goDown();
+        }
       }
       this.ensureMoveLimit();
     },
