@@ -1,5 +1,5 @@
 (function() {
-  var ASSETS, ENEMY_SIZE, SCREEN_BACKGROUND_COLOR, SCREEN_HEIGHT, SCREEN_WIDTH, SHOOTER_BOTTOM_LIMIT, SHOOTER_LEFT_LIMIT, SHOOTER_RIGHT_LIMIT, SHOOTER_SIZE, SHOOTER_TOP_LIMIT, SOUNDS, SOUND_FILES, ensureLoaded, soundGet;
+  var ASSETS, ENEMY_SIZE, SCREEN_BACKGROUND_COLOR, SCREEN_HEIGHT, SCREEN_WIDTH, SHOOTER_BOTTOM_LIMIT, SHOOTER_LEFT_LIMIT, SHOOTER_RIGHT_LIMIT, SHOOTER_SIZE, SHOOTER_TOP_LIMIT;
 
   SCREEN_WIDTH = 640;
 
@@ -9,16 +9,11 @@
 
   ASSETS = {
     "shooter": "img/shooter.png",
-    "enemy": "img/enemy.png"
+    "enemy": "img/enemy.png",
+    "start": "sound/btn09." + tm.sound.Sound.SUPPORT_EXT,
+    "died": "sound/btn11." + tm.sound.Sound.SUPPORT_EXT,
+    "bgm": "sound/nv_01." + tm.sound.Sound.SUPPORT_EXT
   };
-
-  SOUNDS = {
-    "start": "sound/btn09",
-    "died": "sound/btn11",
-    "bgm": "sound/nv_01"
-  };
-
-  SOUND_FILES = {};
 
   SHOOTER_SIZE = 32;
 
@@ -34,42 +29,32 @@
 
 
   /*
-    Util
-   */
-
-  soundGet = function(filePlace) {
-    return tm.sound.Sound(filePlace + "." + tm.sound.Sound.SUPPORT_EXT);
-  };
-
-  ensureLoaded = function(n, m, cb) {
-    if (n >= m) {
-      cb();
-    }
-  };
-
-
-  /*
     起動処理
    */
 
   tm.main(function() {
-    var app, loadCount, loadScene;
+    var app, b, func, loadScene;
     app = tm.display.CanvasApp("#app");
     app.resize(SCREEN_WIDTH, SCREEN_HEIGHT);
     app.fitWindow();
     app.background = SCREEN_BACKGROUND_COLOR;
-    loadCount = 0;
+    b = false;
+    func;
+    document.getElementById("app").addEventListener("touchstart", func = function(e) {
+      if (b) {
+        return false;
+      }
+      b = true;
+      tm.sound.WebAudio.unlock();
+      return window.removeEventListener("touchstart", func);
+    });
     loadScene = LoadScene({
       assets: ASSETS,
-      sounds: SOUNDS,
       width: SCREEN_WIDTH,
       height: SCREEN_HEIGHT
     });
     loadScene.onload = function() {
-      loadCount++;
-      ensureLoaded(loadCount, 2, function() {
-        app.replaceScene(TitleScene());
-      });
+      return app.replaceScene(TitleScene());
     };
     app.replaceScene(loadScene);
     app.run();
@@ -84,29 +69,6 @@
     superClass: "tm.game.LoadingScene",
     init: function(param) {
       this.superInit(param);
-      this.soundBar = tm.ui.Gauge({
-        width: param.width,
-        height: 10,
-        color: "hsl(200, 100%, 80%)",
-        bgColor: "transparent",
-        borderColor: "transparent",
-        borderWidth: 0,
-        x: 0,
-        y: 10
-      });
-      this.soundBar.addChildTo(this.stage);
-      this.stage.tweener.call((function(_this) {
-        return function() {
-          var e, key;
-          if (param.sounds) {
-            for (key in param.sounds) {
-              SOUND_FILES[key] = soundGet(param.sounds[key]);
-            }
-          }
-          e = tm.event.Event("load");
-          _this.fire(e);
-        };
-      })(this));
     }
   });
 
@@ -155,7 +117,7 @@
       this.startLabel.tweener.fadeOut(500).fadeIn(1000).setLoop(true);
     },
     onpointingstart: function() {
-      SOUND_FILES.start.play();
+      tm.sound.SoundManager.play("start", 1.0, 0, false);
       this.app.replaceScene(GameScene());
     }
   });
@@ -164,8 +126,7 @@
     superClass: "tm.app.Scene",
     init: function() {
       this.superInit();
-      this.bgm = SOUND_FILES.bgm;
-      this.bgm.play();
+      tm.sound.SoundManager.playMusic("bgm", true, 1.0);
       this.shooter = Shooter().addChildTo(this);
       this.shooter.position.set(SCREEN_WIDTH / 2, 800);
       this.shooter.gotoAndPlay("test");
@@ -192,8 +153,8 @@
       this.enemyGroup.children.each((function(_this) {
         return function(enemy) {
           if (_this.shooter.isHitElement(enemy)) {
-            _this.bgm.stop();
-            SOUND_FILES.died.play();
+            tm.sound.SoundManager.stopMusic();
+            tm.sound.SoundManager.play("died", 1.0, 0, false);
             app.replaceScene(ResultScene(_this.timer));
           }
         };
