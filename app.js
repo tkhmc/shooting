@@ -344,7 +344,7 @@ tm.define("TitleScene", {
     })(this);
   },
   update: function(app) {
-    if (app.keyboard.getkey("ctrl")) {
+    if (app.keyboard.getKey("ctrl")) {
       tm.sound.SoundManager.mute();
       if (tm.sound.SoundManager.isMute()) {
         this.muteIcon.setImage("speaker0");
@@ -429,7 +429,7 @@ tm.define("GameScene", {
     if (app.keyboard.getKey("shift")) {
       this.app.pushScene(PauseScene());
     }
-    if (app.keyboard.getkey("ctrl")) {
+    if (app.keyboard.getKey("ctrl")) {
       tm.sound.SoundManager.mute();
       if (tm.sound.SoundManager.isMute()) {
         this.muteIcon.setImage("speaker0");
