@@ -437,7 +437,6 @@ tm.define("GameScene", {
         this.muteIcon.setImage("speaker1");
       }
     }
-    return;
     if (this.timer % 30 === 0) {
       n = this.timer / 300;
       for (i = j = 0, ref = n; 0 <= ref ? j <= ref : j >= ref; i = 0 <= ref ? ++j : --j) {
