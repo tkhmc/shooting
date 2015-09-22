@@ -11,6 +11,8 @@ screen_direction = 0;
 ASSETS = {
   "shooter": "img/shooter.png",
   "enemy": "img/enemy.png",
+  "speaker0": "img/speaker0.png",
+  "speaker1": "img/speaker1.png",
   "start": "sound/btn09." + tm.sound.Sound.SUPPORT_EXT,
   "died": "sound/btn11." + tm.sound.Sound.SUPPORT_EXT,
   "bgm": "sound/nv_01." + tm.sound.Sound.SUPPORT_EXT
@@ -84,13 +86,19 @@ tm.define("Shooter", {
         count: 8
       },
       animations: {
-        test: [0, 8, "test", 20]
+        normal: [0, 1, "normal"],
+        right: [1, 2, "right"],
+        left: [2, 3, "left"],
+        explode: [4, 8, "died"],
+        died: [7, 8, "died"]
       }
     }));
     this.speed = 8;
+    this.gotoAndStop("normal");
   },
   update: function(app) {
     var ref, ref1, ref10, ref11, ref12, ref13, ref14, ref15, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9, rotate;
+    this.moved = false;
     if (app.keyboard.getKey("D") || app.keyboard.getKey("right")) {
       this.goRight();
     }
@@ -100,7 +108,7 @@ tm.define("Shooter", {
     if (app.keyboard.getKey("W") || app.keyboard.getKey("up")) {
       this.goUp();
     }
-    if (app.keyboard.getKey("s") || app.keyboard.getKey("down")) {
+    if (app.keyboard.getKey("S") || app.keyboard.getKey("down")) {
       this.goDown();
     }
     if (isMobile) {
@@ -163,19 +171,30 @@ tm.define("Shooter", {
           }
       }
     }
+    if (!this.moved && this.currentAnimation.next !== "died") {
+      this.gotoAndPlay("normal");
+    }
     this.ensureMoveLimit();
   },
   goRight: function() {
+    this.moved = true;
     this.x += this.speed;
+    this.gotoAndPlay("right");
   },
   goLeft: function() {
+    this.moved = true;
     this.x -= this.speed;
+    this.gotoAndPlay("left");
   },
   goUp: function() {
+    this.moved = true;
     this.y -= this.speed;
+    this.gotoAndPlay("normal");
   },
   goDown: function() {
+    this.moved = true;
     this.y += this.speed;
+    this.gotoAndPlay("normal");
   },
   ensureMoveLimit: function() {
     if (this.x < SHOOTER_LEFT_LIMIT) {
@@ -198,12 +217,18 @@ tm.define("Enemy", {
   init: function() {
     this.superInit("enemy", ENEMY_SIZE, ENEMY_SIZE);
     this.speed = Math.rand(6, 12);
+    this.willStop = false;
   },
   update: function() {
-    this.y += this.speed;
+    if (!this.willStop) {
+      this.y += this.speed;
+    }
     if (this.y > SCREEN_HEIGHT + this.height) {
       this.remove();
     }
+  },
+  stop: function() {
+    this.willStop = true;
   }
 });
 
@@ -274,10 +299,38 @@ tm.define("TitleScene", {
           ],
           x: SCREEN_WIDTH / 2,
           y: 900
+        }, {
+          type: "FlatButton",
+          name: "muteButton",
+          init: [
+            {
+              text: "",
+              fontFamily: "メイリオ",
+              width: 60,
+              height: 60
+            }
+          ],
+          x: 30,
+          y: 30
         }
       ]
     });
     this.startButton.label.tweener.fadeOut(500).fadeIn(1000).setLoop(true);
+    if (tm.sound.SoundManager.isMute()) {
+      this.muteIcon = tm.display.Sprite("speaker0", 32, 32).addChildTo(this.muteButton);
+    } else {
+      this.muteIcon = tm.display.Sprite("speaker1", 32, 32).addChildTo(this.muteButton);
+    }
+    this.muteButton.onpointingstart = (function(_this) {
+      return function() {
+        tm.sound.SoundManager.mute();
+        if (tm.sound.SoundManager.isMute()) {
+          _this.muteIcon.setImage("speaker0");
+        } else {
+          _this.muteIcon.setImage("speaker1");
+        }
+      };
+    })(this);
     this.startButton.onpointingstart = (function(_this) {
       return function() {
         tm.sound.SoundManager.play("start", 1.0, 0, false);
@@ -289,6 +342,16 @@ tm.define("TitleScene", {
         window.open("help.html");
       };
     })(this);
+  },
+  update: function(app) {
+    if (app.keyboard.getkey("ctrl")) {
+      tm.sound.SoundManager.mute();
+      if (tm.sound.SoundManager.isMute()) {
+        this.muteIcon.setImage("speaker0");
+      } else {
+        this.muteIcon.setImage("speaker1");
+      }
+    }
   }
 });
 
@@ -304,14 +367,27 @@ tm.define("GameScene", {
           init: [
             {
               text: "||",
-              fontSize: 16,
+              fontSize: 40,
               fontFamily: "メイリオ",
-              width: 40,
-              height: 40
+              width: 60,
+              height: 60
             }
           ],
-          x: 20,
-          y: 20
+          x: 30,
+          y: 30
+        }, {
+          type: "FlatButton",
+          name: "muteButton",
+          init: [
+            {
+              text: "",
+              fontFamily: "メイリオ",
+              width: 60,
+              height: 60
+            }
+          ],
+          x: 30,
+          y: 90
         }
       ]
     });
@@ -321,9 +397,23 @@ tm.define("GameScene", {
       };
     })(this);
     tm.sound.SoundManager.playMusic("bgm", true, 1.0);
+    if (tm.sound.SoundManager.isMute()) {
+      this.muteIcon = tm.display.Sprite("speaker0", 32, 32).addChildTo(this.muteButton);
+    } else {
+      this.muteIcon = tm.display.Sprite("speaker1", 32, 32).addChildTo(this.muteButton);
+    }
+    this.muteButton.onpointingstart = (function(_this) {
+      return function() {
+        tm.sound.SoundManager.mute();
+        if (tm.sound.SoundManager.isMute()) {
+          _this.muteIcon.setImage("speaker0");
+        } else {
+          _this.muteIcon.setImage("speaker1");
+        }
+      };
+    })(this);
     this.shooter = Shooter().addChildTo(this);
     this.shooter.position.set(SCREEN_WIDTH / 2, 800);
-    this.shooter.gotoAndPlay("test");
     this.enemyGroup = tm.app.CanvasElement().addChildTo(this);
     this.timer = 0;
     this.seconds = tm.display.Label("").setPosition(SCREEN_WIDTH - 10, 10).setBaseline("top").setAlign("right").addChildTo(this);
@@ -336,11 +426,23 @@ tm.define("GameScene", {
   update: function(app) {
     var enemy, i, j, n, ref;
     this.timer++;
+    if (app.keyboard.getKey("shift")) {
+      this.app.pushScene(PauseScene());
+    }
+    if (app.keyboard.getkey("ctrl")) {
+      tm.sound.SoundManager.mute();
+      if (tm.sound.SoundManager.isMute()) {
+        this.muteIcon.setImage("speaker0");
+      } else {
+        this.muteIcon.setImage("speaker1");
+      }
+    }
+    return;
     if (this.timer % 30 === 0) {
       n = this.timer / 300;
       for (i = j = 0, ref = n; 0 <= ref ? j <= ref : j >= ref; i = 0 <= ref ? ++j : --j) {
         enemy = Enemy().addChildTo(this.enemyGroup);
-        enemy.x = Math.rand(0, SCREEN_WIDTH);
+        enemy.x = Math.rand(ENEMY_SIZE, SCREEN_WIDTH - ENEMY_SIZE);
         enemy.y = 0 - enemy.height;
       }
     }
@@ -349,7 +451,11 @@ tm.define("GameScene", {
         if (_this.shooter.isHitElement(enemy)) {
           tm.sound.SoundManager.stopMusic();
           tm.sound.SoundManager.play("died", 1.0, 0, false);
-          app.replaceScene(ResultScene(_this.timer));
+          enemy.stop();
+          _this.shooter.gotoAndPlay("explode");
+          setTimeout(function() {
+            app.replaceScene(ResultScene(_this.timer));
+          }, 100);
         }
       };
     })(this));
@@ -400,6 +506,11 @@ tm.define("PauseScene", {
         return _this.app.popScene();
       };
     })(this);
+  },
+  update: function(app) {
+    if (app.keyboard.getKey("escape")) {
+      return this.app.popScene();
+    }
   }
 });
 
