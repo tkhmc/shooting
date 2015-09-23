@@ -487,6 +487,20 @@ tm.define("PauseScene", {
           baseline: "middle"
         }, {
           type: "FlatButton",
+          name: "helpButton",
+          init: [
+            {
+              text: "操作方法",
+              fontSize: 20,
+              fontFamily: "メイリオ",
+              width: 200,
+              height: 80
+            }
+          ],
+          x: SCREEN_WIDTH / 2,
+          y: 600
+        }, {
+          type: "FlatButton",
           name: "backButton",
           init: [
             {
@@ -500,15 +514,20 @@ tm.define("PauseScene", {
         }
       ]
     });
+    this.helpButton.onpointingstart = (function(_this) {
+      return function() {
+        window.open("help.html");
+      };
+    })(this);
     this.backButton.onpointingstart = (function(_this) {
       return function() {
-        return _this.app.popScene();
+        _this.app.popScene();
       };
     })(this);
   },
   update: function(app) {
     if (app.keyboard.getKey("escape")) {
-      return this.app.popScene();
+      this.app.popScene();
     }
   }
 });
@@ -517,6 +536,7 @@ tm.define("ResultScene", {
   superClass: "tm.app.Scene",
   init: function(time) {
     this.superInit();
+    this.timeFormated = Math.floor(time * 100 / 30) / 100;
     this.fromJSON({
       children: [
         {
@@ -547,7 +567,7 @@ tm.define("ResultScene", {
         }, {
           type: "Label",
           name: "titleLabel",
-          text: (Math.floor(time * 100 / 30) / 100) + "秒",
+          text: this.timeFormated + "秒",
           x: SCREEN_WIDTH / 2,
           y: 500,
           fillStyle: "#CCCCFF",
@@ -555,6 +575,20 @@ tm.define("ResultScene", {
           fontFamily: "メイリオ",
           align: "center",
           baseline: "middle"
+        }, {
+          type: "FlatButton",
+          name: "tweetButton",
+          init: [
+            {
+              text: "Twitterでつぶやく",
+              fontSize: 22,
+              fontFamily: "メイリオ",
+              width: 200,
+              height: 80
+            }
+          ],
+          x: SCREEN_WIDTH / 2,
+          y: 600
         }, {
           type: "FlatButton",
           name: "backButton",
@@ -573,6 +607,18 @@ tm.define("ResultScene", {
     this.creditButton.onpointingstart = (function(_this) {
       return function() {
         _this.app.replaceScene(CreditScene(time));
+      };
+    })(this);
+    this.tweetButton.onclick = (function(_this) {
+      return function() {
+        var twitterURL;
+        twitterURL = tm.social.Twitter.createURL({
+          type: "tweet",
+          text: "Shooting! " + _this.timeFormated + "秒間生き残りました！",
+          hashtags: "tmlib, shooting!",
+          url: window.document.location.href
+        });
+        window.open(twitterURL);
       };
     })(this);
     this.backButton.onpointingstart = (function(_this) {
