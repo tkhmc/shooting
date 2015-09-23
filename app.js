@@ -232,6 +232,25 @@ tm.define("Enemy", {
   }
 });
 
+tm.define("Bullet", {
+  superClass: "tm.display.CircleShape",
+  init: function(color, borderColor, speed) {
+    this.superInit({
+      width: 10,
+      height: 10,
+      fillStyle: color,
+      strokeStyle: borderColor
+    });
+    this.speed = speed;
+  },
+  update: function() {
+    this.y += this.speed;
+    if (this.y < 0 || SCREEN_HEIGHT + this.height < this.y) {
+      this.remove();
+    }
+  }
+});
+
 
 /*
   シーン
@@ -344,7 +363,7 @@ tm.define("TitleScene", {
     })(this);
   },
   update: function(app) {
-    if (app.keyboard.getKey("ctrl")) {
+    if (app.keyboard.getKeyDown("ctrl")) {
       tm.sound.SoundManager.mute();
       if (tm.sound.SoundManager.isMute()) {
         this.muteIcon.setImage("speaker0");
@@ -414,8 +433,12 @@ tm.define("GameScene", {
     })(this);
     this.shooter = Shooter().addChildTo(this);
     this.shooter.position.set(SCREEN_WIDTH / 2, 800);
+    this.waitTimeBullet = 0;
+    this.WAIT_TIME_BULLET_LIMIT = 10;
+    this.shooterBulletGroup = tm.app.CanvasElement().addChildTo(this);
     this.enemyGroup = tm.app.CanvasElement().addChildTo(this);
     this.timer = 0;
+    this.hit = 0;
     this.seconds = tm.display.Label("").setPosition(SCREEN_WIDTH - 10, 10).setBaseline("top").setAlign("right").addChildTo(this);
     this.seconds.update = (function(_this) {
       return function(app) {
@@ -424,12 +447,12 @@ tm.define("GameScene", {
     })(this);
   },
   update: function(app) {
-    var enemy, i, j, n, ref;
+    var bullet, enemy, i, j, n, ref;
     this.timer++;
     if (app.keyboard.getKey("shift")) {
       this.app.pushScene(PauseScene());
     }
-    if (app.keyboard.getKey("ctrl")) {
+    if (app.keyboard.getKeyDown("ctrl")) {
       tm.sound.SoundManager.mute();
       if (tm.sound.SoundManager.isMute()) {
         this.muteIcon.setImage("speaker0");
@@ -437,6 +460,13 @@ tm.define("GameScene", {
         this.muteIcon.setImage("speaker1");
       }
     }
+    if (app.keyboard.getKey("space") || app.keyboard.getKey("R") || app.pointing.getPointing()) {
+      this.waitTimeBullet = this.WAIT_TIME_BULLET_LIMIT;
+      bullet = Bullet("blue", "white", -20);
+      bullet.position.set(this.shooter.x, this.shooter.y - 30);
+      bullet.addChildTo(this.shooterBulletGroup);
+    }
+    --this.waitTimeBullet;
     if (this.timer % 30 === 0) {
       n = this.timer / 300;
       for (i = j = 0, ref = n; 0 <= ref ? j <= ref : j >= ref; i = 0 <= ref ? ++j : --j) {
@@ -453,11 +483,21 @@ tm.define("GameScene", {
           enemy.stop();
           _this.shooter.gotoAndPlay("explode");
           setTimeout(function() {
-            app.replaceScene(ResultScene(_this.timer));
+            app.replaceScene(ResultScene(_this.timer, _this.hit));
           }, 100);
         }
+        _this.shooterBulletGroup.children.each(function(shooterBullet) {
+          if (enemy.isHitElement(shooterBullet)) {
+            enemy.remove();
+            shooterBullet.remove();
+            _this.hit++;
+          }
+        });
       };
     })(this));
+  },
+  onblur: function() {
+    this.app.pushScene(PauseScene());
   }
 });
 
@@ -514,6 +554,7 @@ tm.define("PauseScene", {
         }
       ]
     });
+    tm.sound.SoundManager.pauseMusic();
     this.helpButton.onpointingstart = (function(_this) {
       return function() {
         window.open("help.html");
@@ -521,6 +562,7 @@ tm.define("PauseScene", {
     })(this);
     this.backButton.onpointingstart = (function(_this) {
       return function() {
+        tm.sound.SoundManager.resumeMusic();
         _this.app.popScene();
       };
     })(this);
@@ -529,14 +571,21 @@ tm.define("PauseScene", {
     if (app.keyboard.getKey("escape")) {
       this.app.popScene();
     }
+  },
+  onfocus: function() {
+    this.app.start();
+  },
+  onblur: function() {
+    this.app.stop();
   }
 });
 
 tm.define("ResultScene", {
   superClass: "tm.app.Scene",
-  init: function(time) {
+  init: function(time, hit) {
     this.superInit();
     this.timeFormated = Math.floor(time * 100 / 30) / 100;
+    this.score = time + hit * 10;
     this.fromJSON({
       children: [
         {
@@ -558,7 +607,7 @@ tm.define("ResultScene", {
           name: "titleLabel",
           text: "Result",
           x: SCREEN_WIDTH / 2,
-          y: 360,
+          y: 300,
           fillStyle: "#FFFFFF",
           fontSize: 60,
           fontFamily: "メイリオ",
@@ -567,7 +616,18 @@ tm.define("ResultScene", {
         }, {
           type: "Label",
           name: "titleLabel",
-          text: this.timeFormated + "秒",
+          text: this.timeFormated + "秒 " + hit + "ヒット",
+          x: SCREEN_WIDTH / 2,
+          y: 400,
+          fillStyle: "#CCCCFF",
+          fontSize: 36,
+          fontFamily: "メイリオ",
+          align: "center",
+          baseline: "middle"
+        }, {
+          type: "Label",
+          name: "titleLabel",
+          text: "Score: " + this.score,
           x: SCREEN_WIDTH / 2,
           y: 500,
           fillStyle: "#CCCCFF",
@@ -604,23 +664,50 @@ tm.define("ResultScene", {
         }
       ]
     });
+
+    /*
+        {
+          type: "FlatButton"
+          name: "saveButton"
+          init: [
+            {
+              text: "スクショを保存"
+              fontSize: 22
+              fontFamily: "メイリオ"
+              width: 200
+              height: 80
+            }
+          ]
+          x: SCREEN_WIDTH * 3/4
+          y: 600
+        }
+     */
     this.creditButton.onpointingstart = (function(_this) {
       return function() {
-        _this.app.replaceScene(CreditScene(time));
+        _this.app.replaceScene(CreditScene(time, hit));
       };
     })(this);
-    this.tweetButton.onclick = (function(_this) {
+    this.tweetButton.onpointingstart = (function(_this) {
       return function() {
         var twitterURL;
         twitterURL = tm.social.Twitter.createURL({
           type: "tweet",
-          text: "Shooting! " + _this.timeFormated + "秒間生き残りました！",
+          text: "Shooting! " + _this.timeFormated + "秒間生き残り、" + hit + "ヒットしました！ Score: " + _this.score,
           hashtags: "tmlib, shooting!",
           url: window.document.location.href
         });
         window.open(twitterURL);
       };
     })(this);
+
+    /*
+    @saveButton.onpointingstart = =>
+      a = document.createElement("a")
+      a.href = app.toDataURL()
+      a.download = "result.png"
+      a.click()
+      return
+     */
     this.backButton.onpointingstart = (function(_this) {
       return function() {
         _this.app.replaceScene(TitleScene());
@@ -631,7 +718,7 @@ tm.define("ResultScene", {
 
 tm.define("CreditScene", {
   superClass: "tm.app.Scene",
-  init: function(time) {
+  init: function(time, hit) {
     this.superInit();
     this.fromJSON({
       children: [
@@ -676,7 +763,7 @@ tm.define("CreditScene", {
     });
     this.backButton.onpointingstart = (function(_this) {
       return function() {
-        _this.app.replaceScene(ResultScene(time));
+        _this.app.replaceScene(ResultScene(time, hit));
       };
     })(this);
   }
